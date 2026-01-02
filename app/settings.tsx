@@ -8,11 +8,13 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import {
   ArrowLeft,
   Bell,
@@ -25,6 +27,7 @@ import {
   User as UserIcon,
   Smartphone,
   Send,
+  ChevronRight,
 } from 'lucide-react-native';
 import Logo from '../components/Logo';
 import GradientButton from '../components/GradientButton';
@@ -33,6 +36,7 @@ import { generateEvolutionSignal } from '../lib/ai';
 import { Signal, Tone } from '../types';
 import { generateId } from '../lib/storage';
 import { NOTIFICATION_TEMPLATES } from '../lib/messages';
+import { sendImmediateNotification } from '../lib/notifications';
 import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS, GRADIENT } from '../constants/theme';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -48,6 +52,29 @@ export default function SettingsScreen() {
   const { settings, user, goals, signals } = state;
   const [previewMsgIndex, setPreviewMsgIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  // Convert "HH:MM" string to Date object
+  const getTimeAsDate = () => {
+    const [hours, minutes] = settings.notificationTime.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  };
+
+  const handleTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+    if (event.type === 'set' && selectedDate) {
+      const hours = selectedDate.getHours().toString().padStart(2, '0');
+      const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+      updateSettings({ ...settings, notificationTime: `${hours}:${minutes}` });
+    }
+    if (Platform.OS === 'ios' && event.type === 'dismissed') {
+      setShowTimePicker(false);
+    }
+  };
 
   const toggleDay = (day: string) => {
     const newDays = settings.notificationDays.includes(day)
@@ -101,7 +128,13 @@ export default function SettingsScreen() {
         targetIdentity: result.targetIdentity,
       };
       addSignal(newSignal);
-      Alert.alert('Signal Generated', result.text);
+
+      // Send real push notification instead of Alert.alert
+      await sendImmediateNotification(
+        'The Becoming',
+        result.text,
+        { signalId: newSignal.id, type: 'triggered_signal' }
+      );
     } catch (error) {
       Alert.alert('Error', 'Failed to generate signal. Please try again.');
     } finally {
@@ -278,15 +311,46 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* Signal Time */}
-        <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.timeCard}>
-          <View style={styles.timeRow}>
-            <View style={styles.sectionHeader}>
-              <Clock size={16} color={COLORS.muted} />
-              <Text style={styles.sectionLabel}>SIGNAL TIME</Text>
+        <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+          <TouchableOpacity
+            style={styles.timeCard}
+            onPress={() => setShowTimePicker(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.timeRow}>
+              <View style={styles.sectionHeader}>
+                <Clock size={16} color={COLORS.muted} />
+                <Text style={styles.sectionLabel}>SIGNAL TIME</Text>
+              </View>
+              <View style={styles.timeValueRow}>
+                <Text style={styles.timeValue}>{settings.notificationTime}</Text>
+                <ChevronRight size={20} color={COLORS.muted} />
+              </View>
             </View>
-            <Text style={styles.timeValue}>{settings.notificationTime}</Text>
-          </View>
+          </TouchableOpacity>
         </Animated.View>
+
+        {/* Time Picker */}
+        {showTimePicker && (
+          <View style={styles.timePickerContainer}>
+            {Platform.OS === 'ios' && (
+              <View style={styles.timePickerHeader}>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Text style={styles.timePickerDone}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            <DateTimePicker
+              value={getTimeAsDate()}
+              mode="time"
+              is24Hour={true}
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleTimeChange}
+              textColor={COLORS.primary}
+              themeVariant="dark"
+            />
+          </View>
+        )}
 
         {/* Active Days */}
         <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.section}>
@@ -624,10 +688,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  timeValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
   timeValue: {
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.xl,
     color: COLORS.primary,
+  },
+  timePickerContainer: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.xl,
+    marginBottom: SPACING.xl,
+    overflow: 'hidden',
+  },
+  timePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  timePickerDone: {
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.accent,
   },
 
   // Days

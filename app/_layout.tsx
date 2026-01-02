@@ -6,6 +6,11 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { AppProvider } from '../context/AppContext';
 import { COLORS } from '../constants/theme';
+import {
+  initializeNotifications,
+  setupNotificationResponseListener,
+  setupNotificationReceivedListener,
+} from '../lib/notifications';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -27,6 +32,29 @@ export default function RootLayout() {
       console.warn('Font loading error (may be already registered):', fontError.message);
     }
   }, [fontError]);
+
+  // Initialize notifications
+  useEffect(() => {
+    let cleanupResponse: (() => void) | undefined;
+    let cleanupReceived: (() => void) | undefined;
+
+    const setupNotifications = async () => {
+      const granted = await initializeNotifications();
+      if (granted) {
+        // Set up listener for when user taps on notification
+        cleanupResponse = setupNotificationResponseListener();
+        // Set up listener for when notification is received while app is open
+        cleanupReceived = setupNotificationReceivedListener();
+      }
+    };
+
+    setupNotifications();
+
+    return () => {
+      cleanupResponse?.();
+      cleanupReceived?.();
+    };
+  }, []);
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded || fontError) {
@@ -55,6 +83,9 @@ export default function RootLayout() {
         >
           <Stack.Screen name="index" />
           <Stack.Screen name="login" />
+          <Stack.Screen name="register" />
+          <Stack.Screen name="forgot-password" />
+          <Stack.Screen name="reset-password" />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="home" />
           <Stack.Screen

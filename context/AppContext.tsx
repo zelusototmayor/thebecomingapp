@@ -4,6 +4,7 @@ import { loadAppState, saveAppState, clearAppState, generateId } from '../lib/st
 import { generateEvolutionSignal } from '../lib/ai';
 import { syncApi } from '../lib/api';
 import { getTokens, clearTokens, isAuthenticated } from '../lib/auth';
+import { scheduleRecurringNotifications, areNotificationsEnabled } from '../lib/notifications';
 
 interface AppContextType {
   state: AppState;
@@ -84,7 +85,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             },
           }));
         } catch (error) {
-          console.log('Failed to sync from server, using local data:', error);
+          // Silent fail - user may not be logged in yet, which is expected
         }
       }
 
@@ -100,6 +101,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveAppState(state);
     }
   }, [state, isLoading]);
+
+  // Schedule notifications when settings change
+  useEffect(() => {
+    const updateNotificationSchedule = async () => {
+      // Only schedule if user has onboarded and notifications are enabled
+      if (!state.settings.hasOnboarded || isLoading) return;
+
+      const notificationsEnabled = await areNotificationsEnabled();
+      if (!notificationsEnabled) return;
+
+      try {
+        await scheduleRecurringNotifications(state.settings);
+      } catch (error) {
+        console.log('Failed to schedule notifications:', error);
+      }
+    };
+
+    updateNotificationSchedule();
+  }, [
+    state.settings.notificationTime,
+    state.settings.notificationDays,
+    state.settings.hasOnboarded,
+    isLoading,
+  ]);
 
   // Debounced sync to server
   const debouncedSync = useCallback(async () => {
