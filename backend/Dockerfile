@@ -12,8 +12,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build TypeScript
-RUN npm run build
+# Build TypeScript (install globally to avoid symlink issues)
+RUN npm install -g typescript && tsc
 
 # Production stage
 FROM node:20-alpine AS production

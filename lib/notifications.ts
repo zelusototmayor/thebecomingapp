@@ -1,7 +1,10 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
+import Constants from 'expo-constants';
 import { Settings } from '../types';
+import { CONFIG } from '../constants/config';
+import { getTokens } from './auth';
 
 // Configure how notifications appear when app is in foreground
 Notifications.setNotificationHandler({
@@ -106,10 +109,12 @@ export async function scheduleNotificationForTime(
 
 /**
  * Schedule recurring notifications based on user settings
+ * Each notification will use a personalized message from the template pool
  */
 export async function scheduleRecurringNotifications(
   settings: Settings,
-  notificationBody: string = 'Time for your evolution signal'
+  identity: string = 'Future Self',
+  messages?: string[]
 ): Promise<string[]> {
   // Cancel all existing scheduled notifications first
   await Notifications.cancelAllScheduledNotificationsAsync();
@@ -120,10 +125,15 @@ export async function scheduleRecurringNotifications(
 
   const scheduledIds: string[] = [];
 
+  // If messages are provided, use them; otherwise we'll generate on receipt
   // Schedule a notification for each active day
-  for (const day of settings.notificationDays) {
+  for (let i = 0; i < settings.notificationDays.length; i++) {
+    const day = settings.notificationDays[i];
     const weekday = DAY_TO_WEEKDAY[day];
     if (!weekday) continue;
+
+    // Use provided message or a generic one (will be replaced when notification fires)
+    const notificationBody = messages?.[i] || `Time to reconnect with your path as a ${identity}`;
 
     try {
       const notificationId = await Notifications.scheduleNotificationAsync({
@@ -131,7 +141,10 @@ export async function scheduleRecurringNotifications(
           title: 'The Becoming',
           body: notificationBody,
           sound: 'default',
-          data: { type: 'scheduled_signal' },
+          data: {
+            type: 'scheduled_signal',
+            message: notificationBody,
+          },
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
@@ -167,9 +180,16 @@ export async function getScheduledNotifications(): Promise<Notifications.Notific
  * Set up notification response listener (when user taps notification)
  * Returns a cleanup function to remove the listener
  */
-export function setupNotificationResponseListener(): () => void {
+export function setupNotificationResponseListener(
+  onNotificationTapped?: (data: Record<string, unknown>) => void
+): () => void {
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data;
+
+    // Call the callback with notification data (for creating Signal entries)
+    if (onNotificationTapped) {
+      onNotificationTapped(data);
+    }
 
     // Navigate to signals screen when notification is tapped
     // Use setTimeout to ensure navigation happens after app is ready
@@ -220,4 +240,73 @@ export async function initializeNotifications(): Promise<boolean> {
   }
 
   return true;
+}
+
+/**
+ * Register push token with backend for scheduled push notifications
+ */
+export async function registerPushTokenWithBackend(): Promise<void> {
+  try {
+    // Get auth tokens
+    const tokens = await getTokens();
+    if (!tokens) {
+      console.log('No auth tokens, cannot register push token');
+      return;
+    }
+
+    // Get Expo push token
+    const pushTokenResponse = await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+    });
+
+    const pushToken = pushTokenResponse.data;
+    const deviceId = Constants.deviceId || 'unknown';
+    const platform = Platform.OS;
+
+    // Send to backend
+    const response = await fetch(`${CONFIG.apiUrl}/api/push-token/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${tokens.accessToken}`,
+      },
+      body: JSON.stringify({
+        pushToken,
+        deviceId,
+        platform,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to register push token:', response.status);
+      return;
+    }
+
+    console.log('Push token registered successfully');
+  } catch (error) {
+    console.error('Error registering push token:', error);
+  }
+}
+
+/**
+ * Unregister push token from backend (call on logout)
+ */
+export async function unregisterPushTokenFromBackend(): Promise<void> {
+  try {
+    const tokens = await getTokens();
+    if (!tokens) {
+      return;
+    }
+
+    await fetch(`${CONFIG.apiUrl}/api/push-token/unregister`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${tokens.accessToken}`,
+      },
+    });
+
+    console.log('Push token unregistered successfully');
+  } catch (error) {
+    console.error('Error unregistering push token:', error);
+  }
 }

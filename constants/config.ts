@@ -1,6 +1,6 @@
 export const CONFIG = {
   maxGoals: 3,
-  openAiModel: 'gpt-5.2',
+  openAiModel: 'gpt-4o',  // Now used by backend only
   openAiApiUrl: 'https://api.openai.com/v1/chat/completions',
   apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000',
 };

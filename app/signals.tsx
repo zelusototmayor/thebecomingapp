@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import * as Notifications from 'expo-notifications';
 import {
   ArrowLeft,
   Sparkles,
@@ -23,8 +24,34 @@ import { Signal } from '../types';
 import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS } from '../constants/theme';
 
 export default function SignalsScreen() {
-  const { state, updateSignalFeedback } = useApp();
+  const { state, updateSignalFeedback, createSignalFromNotification } = useApp();
   const { signals } = state;
+  const hasCheckedNotification = useRef(false);
+
+  // Check if we arrived here from a notification tap
+  // and create a signal if needed
+  useEffect(() => {
+    if (hasCheckedNotification.current) return;
+    hasCheckedNotification.current = true;
+
+    const checkLastNotification = async () => {
+      try {
+        // Get the last notification response (if user tapped a notification to get here)
+        const response = await Notifications.getLastNotificationResponseAsync();
+        if (response) {
+          const data = response.notification.request.content.data;
+          if (data && data.type === 'scheduled_signal') {
+            // Create a signal from this notification
+            createSignalFromNotification(data);
+          }
+        }
+      } catch (error) {
+        console.log('Error checking notification:', error);
+      }
+    };
+
+    checkLastNotification();
+  }, [createSignalFromNotification]);
 
   const formatTime = (ts: number) => {
     const diff = Date.now() - ts;

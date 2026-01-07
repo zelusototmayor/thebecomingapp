@@ -38,6 +38,9 @@ import { generateId } from '../lib/storage';
 import { NOTIFICATION_TEMPLATES } from '../lib/messages';
 import { sendImmediateNotification } from '../lib/notifications';
 import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS, GRADIENT } from '../constants/theme';
+import { getTokens, clearTokens } from '../lib/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CONFIG } from '../constants/config';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const FREQUENCY_OPTIONS = [
@@ -53,6 +56,8 @@ export default function SettingsScreen() {
   const [previewMsgIndex, setPreviewMsgIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Convert "HH:MM" string to Date object
   const getTimeAsDate = () => {
@@ -153,6 +158,41 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setIsDeleting(true);
+
+      const tokens = await getTokens();
+      if (!tokens) {
+        Alert.alert('Error', 'Not authenticated');
+        return;
+      }
+
+      const response = await fetch(`${CONFIG.apiUrl}/api/user/account`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete account');
+      }
+
+      // Clear local data
+      await clearTokens();
+      await AsyncStorage.clear();
+
+      // Redirect to login
+      router.replace('/login');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete account. Please try again.');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   return (
@@ -389,6 +429,20 @@ export default function SettingsScreen() {
           </View>
         </Animated.View>
 
+        {/* Privacy Policy */}
+        <View style={styles.policySection}>
+          <TouchableOpacity
+            onPress={() => router.push('/privacy-policy')}
+            style={styles.policyButton}
+          >
+            <View>
+              <Text style={styles.policyTitle}>Privacy Policy</Text>
+              <Text style={styles.policySubtitle}>How we handle your data</Text>
+            </View>
+            <ChevronRight size={20} color={COLORS.muted} />
+          </TouchableOpacity>
+        </View>
+
         {/* Delete Data */}
         <View style={styles.deleteSection}>
           <TouchableOpacity style={styles.deleteButton} onPress={handleReset}>
@@ -396,7 +450,54 @@ export default function SettingsScreen() {
             <Text style={styles.deleteButtonText}>Delete Evolution Data</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Account Management */}
+        <View style={styles.accountSection}>
+          <Text style={styles.accountSectionLabel}>ACCOUNT MANAGEMENT</Text>
+          <TouchableOpacity
+            onPress={() => setShowDeleteConfirm(true)}
+            style={styles.deleteAccountButton}
+          >
+            <Text style={styles.deleteAccountTitle}>Delete Account</Text>
+            <Text style={styles.deleteAccountSubtitle}>
+              Permanently delete your account and all data
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteConfirm && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete Account?</Text>
+            <Text style={styles.modalMessage}>
+              This will permanently delete your account, goals, check-ins, and all associated
+              data. This action cannot be undone.
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                onPress={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                style={styles.modalCancelButton}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleDeleteAccount}
+                disabled={isDeleting}
+                style={[styles.modalDeleteButton, isDeleting && styles.modalDeleteButtonDisabled]}
+              >
+                <Text style={styles.modalDeleteText}>
+                  {isDeleting ? 'Deleting...' : 'Delete Forever'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Footer */}
       <View style={styles.footer}>
@@ -772,6 +873,138 @@ const styles = StyleSheet.create({
     color: COLORS.errorMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
+  },
+
+  // Privacy Policy
+  policySection: {
+    marginBottom: SPACING.xl,
+  },
+  policyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: SPACING.lg,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  policyTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+  },
+  policySubtitle: {
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.regular,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+
+  // Account Management
+  accountSection: {
+    marginTop: SPACING.xl,
+    paddingTop: SPACING.xl,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+  },
+  accountSectionLabel: {
+    fontSize: 10,
+    fontFamily: FONTS.bold,
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginBottom: SPACING.md,
+  },
+  deleteAccountButton: {
+    padding: SPACING.lg,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  deleteAccountTitle: {
+    color: '#ef4444',
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    fontFamily: FONTS.bold,
+  },
+  deleteAccountSubtitle: {
+    color: '#ef4444',
+    opacity: 0.7,
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.regular,
+    marginTop: 4,
+  },
+
+  // Modal
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.xxl,
+    padding: SPACING.xl,
+    width: '100%',
+    maxWidth: 340,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '700',
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+    marginBottom: SPACING.md,
+  },
+  modalMessage: {
+    fontSize: FONT_SIZES.md,
+    fontFamily: FONTS.regular,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+    marginBottom: SPACING.xl,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  modalCancelButton: {
+    flex: 1,
+    padding: SPACING.md,
+    backgroundColor: COLORS.cardElevated,
+    borderRadius: BORDER_RADIUS.xl,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: COLORS.text,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    fontFamily: FONTS.bold,
+  },
+  modalDeleteButton: {
+    flex: 1,
+    padding: SPACING.md,
+    backgroundColor: '#ef4444',
+    borderRadius: BORDER_RADIUS.xl,
+    alignItems: 'center',
+  },
+  modalDeleteButtonDisabled: {
+    opacity: 0.5,
+  },
+  modalDeleteText: {
+    color: '#fff',
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    fontFamily: FONTS.bold,
   },
 
   // Footer

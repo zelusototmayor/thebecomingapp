@@ -10,7 +10,10 @@ import checkInsRoutes from './routes/checkIns.js';
 import signalsRoutes from './routes/signals.js';
 import settingsRoutes from './routes/settings.js';
 import syncRoutes from './routes/sync.js';
+import aiRoutes from './routes/ai.js';
+import pushTokenRoutes from './routes/pushToken.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { startNotificationScheduler } from './services/notificationScheduler.js';
 
 dotenv.config();
 
@@ -38,6 +41,8 @@ app.use('/api/check-ins', checkInsRoutes);
 app.use('/api/signals', signalsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/push-token', pushTokenRoutes);
 
 // Error handler
 app.use(errorHandler);
@@ -46,6 +51,9 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // Start notification scheduler
+  startNotificationScheduler();
 });
 
 export default app;

@@ -42,6 +42,8 @@ export default function RootLayout() {
       const granted = await initializeNotifications();
       if (granted) {
         // Set up listener for when user taps on notification
+        // We don't need to create Signal entries here since they'll be created
+        // when the notification is received or when the user opens the signals page
         cleanupResponse = setupNotificationResponseListener();
         // Set up listener for when notification is received while app is open
         cleanupReceived = setupNotificationReceivedListener();

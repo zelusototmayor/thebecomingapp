@@ -4,7 +4,7 @@ import { loadAppState, saveAppState, clearAppState, generateId } from '../lib/st
 import { generateEvolutionSignal } from '../lib/ai';
 import { syncApi } from '../lib/api';
 import { getTokens, clearTokens, isAuthenticated } from '../lib/auth';
-import { scheduleRecurringNotifications, areNotificationsEnabled } from '../lib/notifications';
+import { registerPushTokenWithBackend, unregisterPushTokenFromBackend } from '../lib/notifications';
 
 interface AppContextType {
   state: AppState;
@@ -39,6 +39,7 @@ interface AppContextType {
   addSignal: (signal: Signal) => void;
   triggerSignal: () => Promise<void>;
   updateSignalFeedback: (id: string, feedback: 'like' | 'dislike') => void;
+  createSignalFromNotification: (notificationData: Record<string, unknown>) => void;
 
   // Data management
   resetAllData: () => Promise<void>;
@@ -101,30 +102,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveAppState(state);
     }
   }, [state, isLoading]);
-
-  // Schedule notifications when settings change
-  useEffect(() => {
-    const updateNotificationSchedule = async () => {
-      // Only schedule if user has onboarded and notifications are enabled
-      if (!state.settings.hasOnboarded || isLoading) return;
-
-      const notificationsEnabled = await areNotificationsEnabled();
-      if (!notificationsEnabled) return;
-
-      try {
-        await scheduleRecurringNotifications(state.settings);
-      } catch (error) {
-        console.log('Failed to schedule notifications:', error);
-      }
-    };
-
-    updateNotificationSchedule();
-  }, [
-    state.settings.notificationTime,
-    state.settings.notificationDays,
-    state.settings.hasOnboarded,
-    isLoading,
-  ]);
 
   // Debounced sync to server
   const debouncedSync = useCallback(async () => {
@@ -239,9 +216,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const handleLogin = useCallback((user: User) => {
     setState((prev) => ({ ...prev, user }));
     hasInitialSync.current = false; // Reset so we sync on next load
+
+    // Register push token with backend for scheduled notifications
+    registerPushTokenWithBackend();
   }, []);
 
   const handleLogout = useCallback(async () => {
+    // Unregister push token from backend
+    await unregisterPushTokenFromBackend();
+
     await clearTokens();
     setState((prev) => ({ ...prev, user: null }));
     hasInitialSync.current = false;
@@ -344,6 +327,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const createSignalFromNotification = useCallback((notificationData: Record<string, unknown>) => {
+    const type = notificationData.type as string;
+
+    // Only create signal for scheduled notifications, not triggered ones (they're already created)
+    if (type !== 'scheduled_signal') return;
+
+    // Extract signal data from notification
+    // Backend push notifications send richer data
+    const signalId = (notificationData.signalId as string) || generateId();
+    const text = (notificationData.text as string) || (notificationData.message as string) || 'Evolution signal received';
+    const signalType = (notificationData.signalType as Signal['type']) || 'inquiry';
+    const targetType = (notificationData.targetType as Signal['targetType']) || 'identity';
+    const targetIdentity = notificationData.targetIdentity as string | undefined;
+    const timestamp = (notificationData.timestamp as number) || Date.now();
+
+    // Check if a signal with this ID already exists (avoid duplicates)
+    const exists = state.signals.some((s) => s.id === signalId);
+
+    if (exists) {
+      console.log('Signal already exists, skipping duplicate');
+      return;
+    }
+
+    // Create signal from notification data
+    const newSignal: Signal = {
+      id: signalId,
+      text,
+      timestamp,
+      type: signalType,
+      feedback: 'none',
+      targetType,
+      targetIdentity: targetIdentity || undefined,
+    };
+
+    setState((prev) => ({
+      ...prev,
+      signals: [newSignal, ...prev.signals],
+    }));
+
+    console.log('Signal created from push notification:', signalId);
+  }, [state.signals]);
+
   // Data management
   const resetAllData = useCallback(async () => {
     await clearAppState();
@@ -373,6 +398,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addSignal,
         triggerSignal,
         updateSignalFeedback,
+        createSignalFromNotification,
         resetAllData,
         migrateLocalData,
       }}

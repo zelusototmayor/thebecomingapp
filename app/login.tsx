@@ -7,7 +7,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -19,20 +18,17 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { Mail, Lock, ChevronLeft, LogIn } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Mail, Lock, LogIn } from 'lucide-react-native';
 import Logo from '../components/Logo';
 import GradientButton from '../components/GradientButton';
 import { useApp } from '../context/AppContext';
-import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS, GRADIENT } from '../constants/theme';
-import { generateId } from '../lib/storage';
+import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { authApi } from '../lib/api';
 import { storeTokens } from '../lib/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { handleLogin, state } = useApp();
-  const [mode, setMode] = useState<'selection' | 'email'>('selection');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
@@ -56,26 +52,6 @@ export default function LoginScreen() {
   const blobStyle2 = useAnimatedStyle(() => ({
     opacity: pulseOpacity.value * 0.8,
   }));
-
-  // TODO: Implement Google OAuth in the future
-  const simulateGoogleLogin = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      handleLogin({
-        id: generateId(),
-        email: 'traveler@gmail.com',
-        name: 'Alex Johnson',
-        photoUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex',
-        provider: 'google',
-      });
-      setIsLoading(false);
-      if (state.settings.hasOnboarded) {
-        router.replace('/home');
-      } else {
-        router.replace('/onboarding');
-      }
-    }, 1500);
-  };
 
   const handleEmailLogin = async () => {
     if (!email || !password) return;
@@ -132,112 +108,70 @@ export default function LoginScreen() {
           Become who you were meant to be.
         </Animated.Text>
 
-        {mode === 'selection' ? (
-          <Animated.View
-            entering={FadeInDown.delay(600).duration(500)}
-            style={styles.buttonContainer}
+        <Animated.View
+          entering={FadeInDown.delay(600).duration(500)}
+          style={styles.formContainer}
+        >
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>EMAIL</Text>
+            <View style={styles.inputWrapper}>
+              <Mail size={20} color={COLORS.mutedDark} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="name@example.com"
+                placeholderTextColor={COLORS.mutedDark}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>PASSWORD</Text>
+            <View style={styles.inputWrapper}>
+              <Lock size={20} color={COLORS.mutedDark} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                placeholderTextColor={COLORS.mutedDark}
+                secureTextEntry
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.forgotPassword}
+              onPress={() => router.push('/forgot-password')}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+            </TouchableOpacity>
+          </View>
+
+          <GradientButton
+            onPress={handleEmailLogin}
+            disabled={isLoading || !email || !password}
+            loading={isLoading}
+            style={styles.submitButton}
+            icon={<LogIn size={20} color={COLORS.primary} />}
           >
-            <TouchableOpacity
-              style={styles.googleButton}
-              onPress={simulateGoogleLogin}
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#18181b" size="small" />
-              ) : (
-                <>
-                  <GoogleIcon />
-                  <Text style={styles.googleButtonText}>Join with Google</Text>
-                </>
-              )}
+            Sign In
+          </GradientButton>
+
+          <View style={styles.registerContainer}>
+            <Text style={styles.registerText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => router.push('/register')}>
+              <Text style={styles.registerLink}>Create one</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.emailButton}
-              onPress={() => setMode('email')}
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              <Mail size={20} color={COLORS.primary} />
-              <Text style={styles.emailButtonText}>Continue with Email</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        ) : (
-          <Animated.View
-            entering={FadeInDown.duration(300)}
-            style={styles.formContainer}
-          >
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>EMAIL</Text>
-              <View style={styles.inputWrapper}>
-                <Mail size={20} color={COLORS.mutedDark} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="name@example.com"
-                  placeholderTextColor={COLORS.mutedDark}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoFocus
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>PASSWORD</Text>
-              <View style={styles.inputWrapper}>
-                <Lock size={20} color={COLORS.mutedDark} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="••••••••"
-                  placeholderTextColor={COLORS.mutedDark}
-                  secureTextEntry
-                />
-              </View>
-              <TouchableOpacity
-                style={styles.forgotPassword}
-                onPress={() => router.push('/forgot-password')}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-              </TouchableOpacity>
-            </View>
-
-            <GradientButton
-              onPress={handleEmailLogin}
-              disabled={isLoading || !email || !password}
-              loading={isLoading}
-              style={styles.submitButton}
-              icon={<LogIn size={20} color={COLORS.primary} />}
-            >
-              Sign In
-            </GradientButton>
-
-            <View style={styles.registerContainer}>
-              <Text style={styles.registerText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/register')}>
-                <Text style={styles.registerLink}>Create one</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => setMode('selection')}
-            >
-              <ChevronLeft size={16} color={COLORS.muted} />
-              <Text style={styles.backButtonText}>Go back</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+          </View>
+        </Animated.View>
 
         <Animated.Text
           entering={FadeIn.delay(800).duration(800)}
@@ -249,12 +183,6 @@ export default function LoginScreen() {
     </View>
   );
 }
-
-const GoogleIcon = () => (
-  <View style={{ width: 20, height: 20, marginRight: 4 }}>
-    <Text style={{ fontSize: 18 }}>G</Text>
-  </View>
-);
 
 const styles = StyleSheet.create({
   container: {
@@ -309,43 +237,6 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     textAlign: 'center',
     marginBottom: SPACING.xxl,
-  },
-  buttonContainer: {
-    width: '100%',
-    maxWidth: 340,
-    gap: SPACING.md,
-  },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
-    gap: SPACING.sm,
-  },
-  googleButtonText: {
-    fontFamily: FONTS.bold,
-    fontSize: FONT_SIZES.lg,
-    color: '#18181b',
-  },
-  emailButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    gap: SPACING.sm,
-  },
-  emailButtonText: {
-    fontFamily: FONTS.bold,
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.primary,
   },
   formContainer: {
     width: '100%',
@@ -422,19 +313,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.md,
     color: COLORS.accent,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    gap: SPACING.xs,
-  },
-  backButtonText: {
-    fontFamily: FONTS.medium,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.muted,
   },
   footer: {
     position: 'absolute',

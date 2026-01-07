@@ -85,10 +85,22 @@ CREATE TABLE IF NOT EXISTS user_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Expo push tokens for notifications
+CREATE TABLE IF NOT EXISTS expo_push_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    push_token TEXT NOT NULL,
+    device_id TEXT,
+    platform VARCHAR(10),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_check_ins_user_id ON check_ins(user_id);
 CREATE INDEX IF NOT EXISTS idx_signals_user_id ON signals(user_id);
+CREATE INDEX IF NOT EXISTS idx_expo_push_tokens_user_id ON expo_push_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);

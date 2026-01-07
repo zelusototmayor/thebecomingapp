@@ -1,51 +1,69 @@
 // Notification message pools for the Becoming app
 // {identity} will be replaced with the user's Future Identity (North Star)
+//
+// PSYCHOLOGY FOUNDATION:
+// - Self-Determination Theory: Support autonomy, competence, relatedness
+// - Identity-Based Habits: Every action is a vote for who you're becoming
+// - Self-Compassion: Motivation through caring, not shame
+// - Motivational Interviewing: Evoke, don't confront
+// - Implementation Intentions: Connect situations to responses
 
 import { Tone } from '../types';
 
 /**
  * NOTIFICATION_TEMPLATES use {identity} as a placeholder to be replaced
  * with the user's actual Future Identity (North Star).
+ *
+ * Each tone is grounded in specific psychological principles:
+ * - Gentle: Self-compassion, warmth, normalizing struggle
+ * - Direct: Present-moment awareness, clear choice framing, no shame
+ * - Motivational: Identity-action connection, agency, future-self relatedness
  */
 export const NOTIFICATION_TEMPLATES: Record<Tone, string[]> = {
   gentle: [
-    // Direct Questions
-    "Are you being kind to the version of you that is becoming a {identity}?",
-    "Does your heart feel aligned with your path as a {identity} right now?",
-    "What is one small, soft step you can take toward being a {identity} today?",
-    "Could you pause and check if you are honoring your promise to be a {identity}?",
-    // Quotes
-    "The journey to becoming a {identity} is a marathon of grace, not a sprint of perfection.",
-    "A {identity} grows even in the quiet moments of rest.",
-    "Becoming a {identity} isn't about doing more; it's about being more of who you already are.",
-    "Every breath is a new chance to step back into the shoes of a {identity}.",
-    "The world needs the version of you that is a {identity}."
+    // Autonomy-supportive questions (invite, don't command)
+    "What would feel like a small act of kindness toward your future self right now?",
+    "Is there one gentle step you could take today as a {identity}?",
+    "What does your inner {identity} need from you in this moment?",
+    "How might you honor the {identity} in you, even imperfectly?",
+    // Self-compassion framing
+    "Growth includes rest. What would a wise {identity} do right now?",
+    "You're learning to be a {identity}. Learning takes time—and that's okay.",
+    "Even on hard days, the {identity} in you is still there, still growing.",
+    "Being a {identity} isn't about perfection. It's about returning, again and again.",
+    // Connection to meaning
+    "Somewhere inside, the {identity} you're becoming is already taking shape.",
+    "Small choices matter. What small choice would a {identity} make now?"
   ],
   direct: [
-    // Direct Questions
-    "Are your current actions worthy of the {identity} you claim to be becoming?",
-    "Truth check: Have you done anything today that a {identity} would actually do?",
-    "Is 'future you'—the {identity}—proud of your last 60 minutes?",
-    "Are you making excuses, or are you being a {identity}?",
-    "If we looked at your calendar, would we see a {identity} or just a dreamer?",
-    // Quotes
-    "Identity is built through repeated action. Act like a {identity} right now.",
-    "A {identity} doesn't wait for inspiration; they create it through discipline.",
-    "You are either becoming a {identity} or you are drifting. There is no middle ground.",
-    "The distance between who you are and a {identity} is called 'Today'.",
-    "Don't negotiate with your goals. Be the {identity}."
+    // Present-moment awareness (clear, not shaming)
+    "Right now, you get to choose. What would a {identity} do?",
+    "This moment is a choice point. What aligns with being a {identity}?",
+    "What's one thing you could do in the next hour as a {identity}?",
+    "Your next action is a vote. What does the {identity} in you vote for?",
+    // Competence support (recognize capability)
+    "You know what a {identity} would choose here. Trust that.",
+    "The {identity} isn't someone else—it's a part of you that's ready to act.",
+    "No perfect moment needed. A {identity} starts where they are.",
+    // Implementation intention bridges
+    "Before you decide, pause: what would serve the {identity} you're becoming?",
+    "If you're at a crossroads, ask: which path leads toward {identity}?",
+    "One clear choice, right now, as a {identity}. What is it?"
   ],
   motivational: [
-    // Direct Questions
-    "Can you feel the power of the {identity} rising within you today?",
-    "What epic feat will the {identity} in you conquer before sunset?",
-    "Are you ready to show the world what a {identity} is truly capable of?",
-    // Quotes
-    "The {identity} you are becoming is far more powerful than the person you used to be.",
-    "You didn't choose to be a {identity} because it was easy; you chose it because it's who you ARE.",
-    "Every drop of sweat is a vote for your future as a {identity}.",
-    "The fire of a {identity} can never be extinguished by a single bad day.",
-    "The masterpiece of your life is the {identity} you are manifesting right now."
+    // Identity-action connection (James Clear style)
+    "Every small action is a vote for the {identity} you're becoming.",
+    "The {identity} isn't built in big moments—it's built in moments like this one.",
+    "Your future self is shaped by what you choose right now. What will you cast?",
+    "Each choice either strengthens or weakens the {identity}. Which will this be?",
+    // Agency and self-efficacy
+    "You have the power to choose as a {identity}, right now, today.",
+    "The {identity} doesn't wait for the right moment—they create it.",
+    "You're not becoming a {identity} someday. You're practicing it today.",
+    // Future-self connection
+    "Your future self is cheering for the {identity} choice. What is it?",
+    "In a year, you'll thank the {identity} who showed up today.",
+    "The {identity} you're becoming needs you to show up now. Will you?"
   ]
 };
 
