@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import { Mixpanel } from 'mixpanel-react-native';
 import { AppProvider } from '../context/AppContext';
 import { COLORS } from '../constants/theme';
 import {
@@ -11,6 +12,10 @@ import {
   setupNotificationResponseListener,
   setupNotificationReceivedListener,
 } from '../lib/notifications';
+
+// Initialize Mixpanel
+const MIXPANEL_TOKEN = process.env.EXPO_PUBLIC_MIXPANEL_TOKEN || '';
+export const mixpanel = new Mixpanel(MIXPANEL_TOKEN, true); // true = trackAutomaticEvents
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -32,6 +37,18 @@ export default function RootLayout() {
       console.warn('Font loading error (may be already registered):', fontError.message);
     }
   }, [fontError]);
+
+  // Initialize Mixpanel
+  useEffect(() => {
+    if (MIXPANEL_TOKEN) {
+      mixpanel.init().then(() => {
+        mixpanel.setUseIpAddressForGeolocation(true);
+        mixpanel.track('App Opened');
+      }).catch((error) => {
+        console.warn('Mixpanel initialization error:', error);
+      });
+    }
+  }, []);
 
   // Initialize notifications
   useEffect(() => {
